@@ -2,29 +2,27 @@
 <!--
     Widget metadata.
 
-    minWidth/minHeight target a 2x2 cell footprint as the lower bound
-    (~110dp per cell on most launchers, so 220x220 is a safe baseline).
-    targetCellWidth/Height take precedence on API 31+ and let us advertise a
-    default 4x2 placement, which matches the most common use case (a wide
-    snapshot of a page). resizeMode allows the user to drag to 2x2 or 4x4.
+    Sizing:
+      - minWidth/minHeight set the absolute floor (~2x2 cell on most launchers
+        at ~55 dp/cell).
+      - targetCellWidth/Height are advisory for API 31+ launchers, defaulting
+        to 4x2 (the most common shape for a wide page snapshot).
+      - minResize* allows shrinking to 2x2.
+      - maxResize* allows growing to ~5x5 (480dp on a typical phone is around
+        a 5-cell square). Combined with resizeMode="horizontal|vertical" the
+        user can drag to any cell-size between 2x2 and 5x5.
 
-    updatePeriodMillis is intentionally 0: the AppWidgetManager-driven update
-    cadence is unreliable and capped at ~30 minutes anyway. We schedule our
-    own PeriodicWorkRequest from WorkManager which the user can configure.
-
-    configure: launches WidgetConfigurationActivity right after the widget is
-    placed on the home screen. Without this entry, RESULT_OK in the activity
-    would not register and the widget would be torn down.
+    updatePeriodMillis is intentionally 0: WorkManager owns the cadence.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="220dp"
+    android:minWidth="110dp"
     android:minHeight="110dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:minResizeWidth="110dp"
     android:minResizeHeight="110dp"
-    android:maxResizeWidth="320dp"
-    android:maxResizeHeight="320dp"
+    android:maxResizeWidth="480dp"
+    android:maxResizeHeight="480dp"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_web"
     android:previewImage="@drawable/ic_widget_preview"

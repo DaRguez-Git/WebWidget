@@ -40,9 +40,13 @@ You'll need a working Gradle 8.9 wrapper jar — generate one with
 4. The widget is placed and the first snapshot is rendered within a few
    seconds. After that it refreshes on the cadence you chose.
 
-The widget supports three sizes: 2×2, 4×2 (default), and 4×4. Resize it
-with the standard launcher gesture and the next snapshot will be regenerated
-at the new dimensions.
+The widget supports any cell size from **2×2 up to 5×5** — drag the resize
+handles after placing it. The next refresh re-slices the page snapshot at the
+new dimensions so the page stays readable at the chosen size.
+
+The page is **vertically scrollable**: when the rendered snapshot is taller
+than the widget, swipe up/down inside the widget to scroll through the rest
+of the page. Tapping anywhere opens the URL in the system browser.
 
 ## Architecture
 
@@ -56,9 +60,11 @@ com.lonewren.webwidget/
 └── di/       Manual DI container (no Hilt)
 ```
 
-The widget is just an `ImageView` inside a `FrameLayout`. RemoteViews does
-**not** support `WebView`, so we render in our own process and ship a
-bitmap to the launcher.
+The widget is a `ListView` whose rows are image tiles sliced from a tall
+full-page snapshot. RemoteViews does **not** support `WebView` or
+`ScrollView`, so we render in our own process, slice the bitmap, and feed
+it to a `RemoteViewsService` that the launcher binds to. The list scrolls
+natively.
 
 ## Known limitations
 
@@ -75,9 +81,12 @@ bitmap to the launcher.
 - **Some sites detect WebView as non-Chrome** and serve a degraded layout.
   We send a desktop Chrome User-Agent string to mitigate this, but it's
   not bulletproof.
-- **Bitmap binder limit (~1 MB)**. The bitmap pushed to the launcher is
-  scaled down to the widget's physical pixel size to stay well under the
-  Binder transaction cap. Don't expect retina detail in a 2×2 cell.
+- **Bitmap binder limit (~1 MB) per RemoteViews row**. Each tile pushed
+  through the listview is sized to the widget's physical pixel width to
+  stay well under the Binder transaction cap. Don't expect retina detail
+  in a 2×2 cell.
+- **Page truncated past ~12,000 px tall**. Infinitely-scrolling pages
+  (Twitter feeds, etc.) are clipped at that height to keep memory bounded.
 - **No video/audio.** `mediaPlaybackRequiresUserGesture` is on, so
   autoplaying audio won't fire and animations are captured as a single
   frame at the moment of snapshot.

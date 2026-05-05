@@ -2,39 +2,40 @@
 <!--
     RemoteViews layout for the home-screen widget.
 
-    Constraint: RemoteViews only supports a small whitelist of view types and
-    attributes. ImageView + FrameLayout + TextView are safe; ScrollView, custom
-    views and WebView are NOT — that is the entire reason we paint to a Bitmap
-    in a worker rather than embedding a WebView here.
+    Constraint: RemoteViews supports a tiny set of scrollable containers:
+    ListView, GridView, StackView, AdapterViewFlipper. ScrollView is NOT
+    supported. To get vertical scrolling we use a ListView whose rows are
+    image tiles sliced from a tall full-page snapshot. The listview is
+    populated by WebWidgetRemoteViewsService through setRemoteAdapter.
 
-    The ImageView holds the rendered snapshot (set via setImageViewBitmap).
-    The TextView is overlaid only when we have an error to surface; the worker
-    flips its visibility through RemoteViews.setViewVisibility.
+    The TextView serves as the empty view (setEmptyView). It is shown
+    automatically by the launcher whenever the ListView reports zero rows
+    — i.e. before the first snapshot lands.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:id="@+id/widget_root">
+    android:background="@drawable/widget_background">
 
-    <ImageView
-        android:id="@+id/widget_image"
+    <ListView
+        android:id="@+id/widget_list"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:contentDescription="@string/widget_label" />
+        android:divider="@null"
+        android:dividerHeight="0dp"
+        android:scrollbars="vertical"
+        android:overScrollMode="never"
+        android:listSelector="@android:color/transparent" />
 
     <TextView
-        android:id="@+id/widget_error_text"
+        android:id="@+id/widget_empty"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
+        android:layout_height="match_parent"
         android:gravity="center"
         android:padding="12dp"
         android:textColor="@color/widget_error_text"
-        android:textSize="12sp"
-        android:visibility="gone"
-        tools:ignore="UnusedAttribute"
-        xmlns:tools="http://schemas.android.com/tools" />
+        android:textSize="14sp"
+        android:text="@string/widget_loading" />
 
 </FrameLayout>

@@ -20,85 +20,64 @@ import kotlin.math.min
 /**
  * Builds the [RemoteViews] tree pushed to the launcher for a given widget.
  *
- * RemoteViews has a tiny API surface: only the methods explicitly tagged with
- * @RemotableViewMethod can be called across processes. That's why we lean on
- * setImageViewBitmap / setTextViewText / setOnClickPendingIntent and avoid
- * anything fancy.
+ * The widget is a ListView whose rows come from [WebWidgetRemoteViewsService].
+ * This builder is responsible for:
+ *  - Wiring the ListView to the service via setRemoteAdapter (every refresh
+ *    must pass a fresh Intent so the launcher invalidates its row cache).
+ *  - Setting the empty view text (loading / error).
+ *  - Setting the click pending intent template — the per-row fill-in is
+ *    set inside the factory.
  */
 object WidgetRemoteViewsBuilder {
 
-    fun success(
+    /**
+     * Builds the adapter-backed RemoteViews. Call [Companion.notifyDataChanged]
+     * after every snapshot write so the launcher reloads tiles.
+     *
+     * @param emptyText shown by the launcher when the ListView reports zero
+     *                  rows (i.e. before the first snapshot lands or while
+     *                  the cache is being rewritten).
+     */
+    fun adapter(
         context: Context,
         appWidgetId: Int,
-        snapshot: Bitmap,
-        targetUrl: String,
-    ): RemoteViews = RemoteViews(context.packageName, R.layout.widget_web).apply {
-        setImageViewBitmap(R.id.widget_image, snapshot)
-        setViewVisibility(R.id.widget_error_text, View.GONE)
-        setOnClickPendingIntent(R.id.widget_root, openUrlPendingIntent(context, appWidgetId, targetUrl))
-    }
-
-    fun error(
-        context: Context,
-        appWidgetId: Int,
-        widthPx: Int,
-        heightPx: Int,
         targetUrl: String?,
-        lastAttemptEpochMillis: Long,
-    ): RemoteViews {
-        // Render a placeholder bitmap with the error message + last attempt
-        // timestamp baked in. We bake it instead of overlaying a TextView so
-        // the layout stays a single ImageView and we don't have to juggle
-        // RemoteViews font sizing across launchers.
-        val placeholder = renderErrorBitmap(
-            context = context,
-            widthPx = widthPx,
-            heightPx = heightPx,
-            lastAttemptEpochMillis = lastAttemptEpochMillis,
-        )
-        return RemoteViews(context.packageName, R.layout.widget_web).apply {
-            setImageViewBitmap(R.id.widget_image, placeholder)
-            setViewVisibility(R.id.widget_error_text, View.GONE)
-            if (targetUrl != null) {
-                setOnClickPendingIntent(
-                    R.id.widget_root,
-                    openUrlPendingIntent(context, appWidgetId, targetUrl),
-                )
-            }
+        emptyText: String,
+    ): RemoteViews = RemoteViews(context.packageName, R.layout.widget_web).apply {
+        val adapterIntent = Intent(context, WebWidgetRemoteViewsService::class.java).apply {
+            putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            // Distinct data URI per appWidgetId is essential: the launcher
+            // dedupes adapter intents by their `Intent.filterEquals`, which
+            // ignores extras. Without unique data the launcher would reuse
+            // the factory of another widget.
+            data = Uri.parse("webwidget://$appWidgetId")
+        }
+        setRemoteAdapter(R.id.widget_list, adapterIntent)
+        setEmptyView(R.id.widget_list, R.id.widget_empty)
+        setTextViewText(R.id.widget_empty, emptyText)
+        setViewVisibility(R.id.widget_empty, View.VISIBLE)
+
+        if (targetUrl != null) {
+            setPendingIntentTemplate(
+                R.id.widget_list,
+                openUrlPendingIntent(context, appWidgetId, targetUrl),
+            )
+            // Tap on the empty view (loading/error state) also opens the URL,
+            // so the user has a way to recover with the same gesture.
+            setOnClickPendingIntent(
+                R.id.widget_empty,
+                openUrlPendingIntent(context, appWidgetId, targetUrl),
+            )
         }
     }
 
     /**
-     * Initial layout shown while the very first snapshot is still rendering.
-     * Avoids a brief blank square right after the widget is added.
+     * Pre-renders a placeholder bitmap with the localized error title and
+     * the timestamp of the last attempt. We bake into a bitmap rather than
+     * relying on RemoteViews TextView styling because RemoteViews has poor
+     * text controls at small widget sizes.
      */
-    fun loading(context: Context): RemoteViews =
-        RemoteViews(context.packageName, R.layout.widget_web).apply {
-            setViewVisibility(R.id.widget_error_text, View.VISIBLE)
-            setTextViewText(R.id.widget_error_text, context.getString(R.string.widget_loading))
-        }
-
-    private fun openUrlPendingIntent(
-        context: Context,
-        appWidgetId: Int,
-        url: String,
-    ): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-            // The launcher process starts this activity, so we need NEW_TASK.
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        // requestCode = appWidgetId so each widget owns a distinct PendingIntent.
-        // FLAG_IMMUTABLE is required from API 31; FLAG_UPDATE_CURRENT keeps the
-        // PendingIntent reusable when the URL changes.
-        return PendingIntent.getActivity(
-            context,
-            appWidgetId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-    }
-
-    private fun renderErrorBitmap(
+    fun renderErrorTile(
         context: Context,
         widthPx: Int,
         heightPx: Int,
@@ -126,9 +105,6 @@ object WidgetRemoteViewsBuilder {
             SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastAttemptEpochMillis)),
         )
 
-        // Vertically center the two-line stack. Paint.measureText gives width;
-        // for vertical placement we use the font ascent/descent of the bigger
-        // paint so the visual baseline is balanced.
         val titleBounds = Rect().also { titlePaint.getTextBounds(title, 0, title.length, it) }
         val subtitleBounds = Rect().also {
             subtitlePaint.getTextBounds(subtitle, 0, subtitle.length, it)
@@ -150,5 +126,21 @@ object WidgetRemoteViewsBuilder {
             subtitlePaint,
         )
         return bmp
+    }
+
+    private fun openUrlPendingIntent(
+        context: Context,
+        appWidgetId: Int,
+        url: String,
+    ): PendingIntent {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return PendingIntent.getActivity(
+            context,
+            appWidgetId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 }

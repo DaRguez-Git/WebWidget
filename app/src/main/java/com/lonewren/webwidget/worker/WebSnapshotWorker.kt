@@ -2,9 +2,11 @@ package com.lonewren.webwidget.worker
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.lonewren.webwidget.R
 import com.lonewren.webwidget.di.appContainer
 import com.lonewren.webwidget.widget.SnapshotCache
 import com.lonewren.webwidget.widget.WidgetRemoteViewsBuilder
@@ -15,12 +17,14 @@ import kotlinx.coroutines.withContext
 /**
  * Periodic worker that:
  *  1. Reads the per-widget config from DataStore.
- *  2. Asks [WebSnapshotRenderer] to produce a Bitmap for the configured URL.
- *  3. Pushes the result (or an error placeholder) into the launcher via
- *     [AppWidgetManager.updateAppWidget].
+ *  2. Asks [WebSnapshotRenderer] for the full-page tall bitmap.
+ *  3. Slices it into widget-sized tiles and writes them through
+ *     [SnapshotCache].
+ *  4. Tells the launcher to reload the widget's ListView via
+ *     [AppWidgetManager.notifyAppWidgetViewDataChanged].
  *
- * The actual WebView interaction is in [WebSnapshotRenderer]; this class is
- * the thin wiring layer.
+ * On failure: a single error tile is written and the same notify is fired,
+ * so the widget shows the placeholder as one ListView row.
  */
 class WebSnapshotWorker(
     context: Context,
@@ -41,62 +45,91 @@ class WebSnapshotWorker(
         container.widgetPreferences.setLastAttempt(widgetId, now)
 
         val size = WidgetSizing.measure(applicationContext, widgetId)
+        val cache = SnapshotCache(applicationContext)
         val renderer = WebSnapshotRenderer(applicationContext)
+        val appWidgetManager = AppWidgetManager.getInstance(applicationContext)
 
-        val outcome = renderer.render(
+        // Always rebuild the adapter RemoteViews — the empty view text changes
+        // between loading / error states and the launcher won't refresh the
+        // text on its own.
+        val rv = WidgetRemoteViewsBuilder.adapter(
+            context = applicationContext,
+            appWidgetId = widgetId,
+            targetUrl = config.url,
+            emptyText = applicationContext.getString(R.string.widget_loading),
+        )
+        appWidgetManager.updateAppWidget(widgetId, rv)
+
+        val outcome = renderer.renderFullPage(
             url = config.url,
             targetWidthPx = size.widthPx,
-            targetHeightPx = size.heightPx,
         )
 
         when (outcome) {
             is WebSnapshotRenderer.Result.Success -> {
-                // Persist on disk so the provider can repaint quickly when the
-                // launcher rebinds the widget (e.g. after a reboot).
-                withContext(Dispatchers.IO) {
-                    SnapshotCache(applicationContext).write(widgetId, outcome.bitmap)
+                val tiles = withContext(Dispatchers.Default) {
+                    sliceIntoTiles(outcome.bitmap, tileHeightPx = size.heightPx)
                 }
-                val rv = WidgetRemoteViewsBuilder.success(
-                    context = applicationContext,
-                    appWidgetId = widgetId,
-                    snapshot = outcome.bitmap,
-                    targetUrl = config.url,
-                )
-                AppWidgetManager.getInstance(applicationContext)
-                    .updateAppWidget(widgetId, rv)
+                withContext(Dispatchers.IO) { cache.writeTiles(widgetId, tiles) }
+
+                // notifyAppWidgetViewDataChanged is the trigger that makes
+                // the launcher call our factory's onDataSetChanged. Without
+                // this call the new tiles stay invisible.
+                appWidgetManager.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_list)
+
+                outcome.bitmap.recycle()
+                tiles.forEach { it.recycle() }
                 return Result.success()
             }
             is WebSnapshotRenderer.Result.Failure -> {
-                // Surface the underlying reason on logcat so users can diag
-                // their own widgets via `adb logcat -s WebSnapshotWorker:W`.
-                // The widget itself shows a generic "Couldn't load page"
-                // because RemoteViews has no good way to display a long
-                // error message at small sizes.
                 Log.w(
                     TAG,
                     "snapshot failed for widget=$widgetId url=${config.url}: ${outcome.reason}",
                 )
-                val rv = WidgetRemoteViewsBuilder.error(
+                val errorTile = WidgetRemoteViewsBuilder.renderErrorTile(
                     context = applicationContext,
-                    appWidgetId = widgetId,
                     widthPx = size.widthPx,
                     heightPx = size.heightPx,
-                    targetUrl = config.url,
                     lastAttemptEpochMillis = now,
                 )
-                AppWidgetManager.getInstance(applicationContext)
-                    .updateAppWidget(widgetId, rv)
-                // Return retry so WorkManager backs off and tries again on
-                // the next periodic tick. We deliberately don't return
-                // failure(): a transient network issue shouldn't drop the
-                // periodic schedule.
+                withContext(Dispatchers.IO) { cache.writeSingleTile(widgetId, errorTile) }
+                appWidgetManager.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_list)
+                errorTile.recycle()
+                // retry() so WorkManager retries on the next periodic tick
+                // without dropping the schedule.
                 return Result.retry()
             }
         }
     }
 
+    /**
+     * Splits a tall bitmap into N rows of [tileHeightPx] each, plus a final
+     * shorter tile for the remainder. Each tile is a copy (createBitmap +
+     * source rect) so the source bitmap can be recycled afterwards.
+     */
+    private fun sliceIntoTiles(source: Bitmap, tileHeightPx: Int): List<Bitmap> {
+        val safeTileHeight = tileHeightPx.coerceAtLeast(MIN_TILE_HEIGHT_PX)
+        val width = source.width
+        val total = source.height
+        if (total <= safeTileHeight) {
+            // The whole page fits in one tile. Avoid an unnecessary copy.
+            return listOf(source.copy(Bitmap.Config.ARGB_8888, false))
+        }
+        val tiles = mutableListOf<Bitmap>()
+        var y = 0
+        while (y < total) {
+            val rowHeight = (total - y).coerceAtMost(safeTileHeight)
+            tiles += Bitmap.createBitmap(source, 0, y, width, rowHeight)
+            y += rowHeight
+        }
+        return tiles
+    }
+
     companion object {
         const val KEY_WIDGET_ID = "appWidgetId"
         private const val TAG = "WebSnapshotWorker"
+        // Defends against zero / negative widget heights from launchers that
+        // haven't reported OPTIONS yet.
+        private const val MIN_TILE_HEIGHT_PX = 120
     }
 }

@@ -54,6 +54,17 @@
                 android:resource="@xml/web_widget_provider_info" />
         </receiver>
 
+        <!--
+            Backs the ListView inside the widget. The android:permission entry
+            is mandatory: the launcher process binds with BIND_REMOTEVIEWS and
+            without this declaration the bind silently fails (the widget
+            renders empty forever).
+        -->
+        <service
+            android:name=".widget.WebWidgetRemoteViewsService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
     </application>
 
 </manifest>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Single row of the widget's ListView: just an ImageView holding one
+    pre-sliced tile of the page snapshot. wrap_content height with adjustViewBounds
+    keeps each tile at its natural pixel size so two consecutive tiles render as
+    a continuous image without gaps or stretching.
+-->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tile_image"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:adjustViewBounds="true"
+    android:scaleType="fitCenter"
+    android:contentDescription="@string/widget_label" />
