@@ -67,7 +67,4 @@ dependencies {
 
     // DataStore (Preferences flavor only — we don't need Proto)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
-
-    // WebKit compat for the (eventual) WebView snapshot worker
-    implementation("androidx.webkit:webkit:1.12.1")
 }

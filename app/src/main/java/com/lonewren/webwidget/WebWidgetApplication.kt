@@ -1,26 +1,19 @@
 package com.lonewren.webwidget
 
 import android.app.Application
-import androidx.work.Configuration
 import com.lonewren.webwidget.di.AppContainer
 
 /**
- * Application entry point.
+ * Application entry point. Holds the [AppContainer] (manual DI, no Hilt) so
+ * collaborators that don't fit cleanly into the Application lifecycle (Worker,
+ * BroadcastReceiver) can reach the same DataStore handle.
  *
- * Two responsibilities:
- *  1. Hold the [AppContainer] (manual DI, no Hilt) so the same DataStore /
- *     WorkManager handles are reused across the process.
- *  2. Provide a [Configuration.Provider]-style WorkManager init. We use the
- *     on-demand initializer pattern (default WorkManager initializer) since we
- *     don't need a custom WorkerFactory yet — workers are constructible from
- *     just (Context, WorkerParameters).
+ * WorkManager is initialised by its default app-startup initialiser. We do
+ * not implement [androidx.work.Configuration.Provider] here because we have
+ * no need for a custom WorkerFactory — our worker has a (Context,
+ * WorkerParameters) constructor and the default factory handles it.
  */
-class WebWidgetApplication : Application(), Configuration.Provider {
+class WebWidgetApplication : Application() {
 
     val container: AppContainer by lazy { AppContainer(this) }
-
-    override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
-            .setMinimumLoggingLevel(android.util.Log.INFO)
-            .build()
 }
