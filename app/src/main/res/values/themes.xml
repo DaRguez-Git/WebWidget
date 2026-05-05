@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        We use a Material3 base because the configuration screen is Compose
-        Material3. The widget itself does not consume this theme — it lives in
-        the launcher's process and uses RemoteViews.
+        AppCompat DayNight is enough here because the configuration screen is
+        rendered with Compose Material3, which doesn't read its theme from XML.
+        The XML theme only controls system bars + window background until the
+        Compose tree takes over.
+
+        Avoiding Theme.Material3.* on purpose: that style lives in
+        com.google.android.material, which we don't depend on (Compose's
+        material3 artifact does NOT provide XML themes).
     -->
-    <style name="Theme.WebWidget" parent="Theme.Material3.DayNight.NoActionBar" />
+    <style name="Theme.WebWidget" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>
