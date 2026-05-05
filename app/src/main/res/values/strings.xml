@@ -27,4 +27,6 @@
     <string name="widget_add_card_text">+ Add URL</string>
     <string name="widget_nav_prev">Previous page</string>
     <string name="widget_nav_next">Next page</string>
+    <string name="widget_nav_refresh">Refresh current page</string>
+    <string name="widget_card_last_updated">Last updated: %1$s</string>
 </resources>

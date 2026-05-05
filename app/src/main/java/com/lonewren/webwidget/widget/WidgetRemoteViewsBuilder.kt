@@ -81,6 +81,10 @@ object WidgetRemoteViewsBuilder {
             R.id.widget_prev,
             WidgetNavigationReceiver.prevPendingIntent(context, appWidgetId),
         )
+        setOnClickPendingIntent(
+            R.id.widget_refresh,
+            WidgetNavigationReceiver.refreshPendingIntent(context, appWidgetId),
+        )
     }
 
     /**

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -32,6 +33,7 @@ class WidgetPreferences(private val appContext: Context) {
     private fun urlsKey(id: Int) = stringPreferencesKey("widget.$id.urls")
     private fun intervalKey(id: Int) = stringPreferencesKey("widget.$id.interval")
     private fun lastAttemptKey(id: Int) = longPreferencesKey("widget.$id.last_attempt")
+    private fun currentIndexKey(id: Int) = intPreferencesKey("widget.$id.current_index")
 
     fun observe(appWidgetId: Int): Flow<WidgetConfig?> =
         store.data.map { prefs -> readConfig(prefs, appWidgetId) }
@@ -53,11 +55,29 @@ class WidgetPreferences(private val appContext: Context) {
         store.edit { prefs -> prefs[lastAttemptKey(appWidgetId)] = epochMillis }
     }
 
+    /**
+     * The card index the user is currently viewing in the StackView.
+     *
+     * StackView state lives in the launcher's process; we cannot query it.
+     * Instead we mirror it here every time the user taps prev/next so that
+     * "refresh current page" knows which URL to re-render. The mirror is
+     * stale if the user uses the launcher's own swipe gesture, but that
+     * gesture is unreliable across launchers anyway, so the buttons are
+     * the canonical navigation path.
+     */
+    suspend fun getCurrentIndex(appWidgetId: Int): Int =
+        store.data.first()[currentIndexKey(appWidgetId)] ?: 0
+
+    suspend fun setCurrentIndex(appWidgetId: Int, index: Int) {
+        store.edit { prefs -> prefs[currentIndexKey(appWidgetId)] = index }
+    }
+
     suspend fun remove(appWidgetId: Int) {
         store.edit { prefs ->
             prefs.remove(urlsKey(appWidgetId))
             prefs.remove(intervalKey(appWidgetId))
             prefs.remove(lastAttemptKey(appWidgetId))
+            prefs.remove(currentIndexKey(appWidgetId))
         }
     }
 

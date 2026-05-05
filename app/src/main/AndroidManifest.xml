@@ -90,6 +90,7 @@
             <intent-filter>
                 <action android:name="com.lonewren.webwidget.ACTION_NEXT" />
                 <action android:name="com.lonewren.webwidget.ACTION_PREV" />
+                <action android:name="com.lonewren.webwidget.ACTION_REFRESH" />
             </intent-filter>
         </receiver>
 

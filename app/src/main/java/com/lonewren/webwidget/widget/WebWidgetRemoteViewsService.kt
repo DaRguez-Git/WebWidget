@@ -11,6 +11,9 @@ import com.lonewren.webwidget.data.WidgetConfig
 import com.lonewren.webwidget.di.appContainer
 import kotlinx.coroutines.runBlocking
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Backs the widget's [android.widget.StackView]. The launcher binds to this
@@ -93,6 +96,15 @@ class WebWidgetRemoteViewsService : RemoteViewsService() {
             if (bmp != null) {
                 rv.setImageViewBitmap(R.id.card_image, bmp)
             }
+            // "Last updated: HH:mm" text per card. We use the file's
+            // mtime so we don't need a parallel data structure of
+            // per-URL timestamps — every writeSnapshot bumps it for free.
+            val timestampText = context.getString(
+                R.string.widget_card_last_updated,
+                TIMESTAMP_FORMAT.format(Date(file.lastModified())),
+            )
+            rv.setTextViewText(R.id.card_timestamp, timestampText)
+
             // Per-card click: open the URL. The pending-intent template is
             // set on the StackView; we only contribute the URL here.
             val url = urls.getOrNull(position)
@@ -124,5 +136,12 @@ class WebWidgetRemoteViewsService : RemoteViewsService() {
         override fun getItemId(position: Int): Long = position.toLong()
 
         override fun hasStableIds(): Boolean = true
+
+        companion object {
+            // Locale.getDefault for the user's region; time-only because the
+            // pill is small and a date wouldn't add information for the
+            // "minutes-ago" use case.
+            private val TIMESTAMP_FORMAT = SimpleDateFormat("HH:mm", Locale.getDefault())
+        }
     }
 }

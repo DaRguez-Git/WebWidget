@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Single URL card inside the widget's StackView. The image fills the
-    StackView area; fitXY is intentional because the bitmap is rendered
-    at exactly the widget dimensions, so no scaling artefacts appear.
-    The FrameLayout root is what receives the click fill-in intent;
-    clickable=true is required so StackView's gesture detector doesn't
-    swallow taps on its way up the view tree.
+    card; fitXY is intentional because the bitmap is rendered at exactly
+    the widget dimensions, so no scaling artefacts appear.
+
+    The timestamp pill at the bottom-start shows "Last updated: HH:mm"
+    of this specific snapshot — the worker's writeSnapshot bumps the
+    underlying file's lastModified() and the factory formats it for the
+    text. clickable=true on the root keeps StackView's gesture detector
+    from swallowing taps before they reach the click fill-in intent.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/card_root"
@@ -21,5 +24,17 @@
         android:layout_height="match_parent"
         android:scaleType="fitXY"
         android:contentDescription="@string/widget_label" />
+
+    <TextView
+        android:id="@+id/card_timestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="6dp"
+        android:background="@drawable/timestamp_pill_background"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="3dp"
+        android:textColor="#FFFFFFFF"
+        android:textSize="11sp" />
 
 </FrameLayout>

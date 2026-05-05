@@ -43,6 +43,19 @@ class SnapshotCache(private val appContext: Context) {
         }
     }
 
+    /**
+     * Rewrites a single tile in place, leaving the others untouched. Used
+     * by the manual-refresh path so refreshing one URL doesn't invalidate
+     * the snapshots of the rest. The file's lastModified() — which we use
+     * as the per-card "Last updated" timestamp — is implicitly bumped.
+     */
+    fun writeSnapshot(appWidgetId: Int, index: Int, bitmap: Bitmap) {
+        widgetDir(appWidgetId).mkdirs()
+        FileOutputStream(snapshotFile(appWidgetId, index)).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+    }
+
     /** Files in numeric order. Empty if no snapshot has landed yet. */
     fun listSnapshots(appWidgetId: Int): List<File> {
         val dir = widgetDir(appWidgetId)

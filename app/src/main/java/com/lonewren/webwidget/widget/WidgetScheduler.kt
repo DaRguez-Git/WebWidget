@@ -67,6 +67,35 @@ object WidgetScheduler {
         wm.cancelUniqueWork(oneShotWorkName(appWidgetId))
     }
 
+    /**
+     * Enqueues an immediate one-shot render. If [urlIndex] is non-negative
+     * the worker renders only that URL; otherwise it renders all URLs in
+     * the widget. Called from the manual-refresh button on the widget.
+     *
+     * REPLACE policy: tapping refresh repeatedly cancels in-flight work
+     * for the same name and starts the latest one — the user almost
+     * always wants the freshest run, not a queue of pending refreshes.
+     */
+    fun refreshNow(context: Context, appWidgetId: Int, urlIndex: Int = WebSnapshotWorker.ALL_URLS) {
+        val wm = WorkManager.getInstance(context)
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val data = workDataOf(
+            WebSnapshotWorker.KEY_WIDGET_ID to appWidgetId,
+            WebSnapshotWorker.KEY_URL_INDEX to urlIndex,
+        )
+        val request = OneTimeWorkRequestBuilder<WebSnapshotWorker>()
+            .setConstraints(constraints)
+            .setInputData(data)
+            .build()
+        wm.enqueueUniqueWork(
+            oneShotWorkName(appWidgetId),
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }
+
     private fun periodicWorkName(id: Int) = "web-widget-periodic-$id"
     private fun oneShotWorkName(id: Int) = "web-widget-oneshot-$id"
 }
