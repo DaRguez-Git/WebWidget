@@ -65,7 +65,14 @@ class WebWidgetRemoteViewsService : RemoteViewsService() {
         // N URL cards plus one trailing "+ Add URL" card. The add card is
         // hidden when the user already has [WidgetConfig.MAX_URLS] entries
         // (no more can be added anyway).
+        //
+        // Special case: when URLs are configured but no snapshots have
+        // landed yet, returning 0 forces the empty view ("Loading…") to
+        // show. Without this branch the user would see only the "+ Add"
+        // card while the worker is still rendering, which is confusing —
+        // it looks like the widget is empty when it's actually busy.
         override fun getCount(): Int {
+            if (urls.isNotEmpty() && snapshots.isEmpty()) return 0
             val urlCount = snapshots.size
             val addCard = if (urls.size < WidgetConfig.MAX_URLS) 1 else 0
             return urlCount + addCard
