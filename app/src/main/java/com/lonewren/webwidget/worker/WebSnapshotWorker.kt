@@ -2,6 +2,7 @@ package com.lonewren.webwidget.worker
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.lonewren.webwidget.di.appContainer
@@ -66,6 +67,15 @@ class WebSnapshotWorker(
                 return Result.success()
             }
             is WebSnapshotRenderer.Result.Failure -> {
+                // Surface the underlying reason on logcat so users can diag
+                // their own widgets via `adb logcat -s WebSnapshotWorker:W`.
+                // The widget itself shows a generic "Couldn't load page"
+                // because RemoteViews has no good way to display a long
+                // error message at small sizes.
+                Log.w(
+                    TAG,
+                    "snapshot failed for widget=$widgetId url=${config.url}: ${outcome.reason}",
+                )
                 val rv = WidgetRemoteViewsBuilder.error(
                     context = applicationContext,
                     appWidgetId = widgetId,
@@ -87,5 +97,6 @@ class WebSnapshotWorker(
 
     companion object {
         const val KEY_WIDGET_ID = "appWidgetId"
+        private const val TAG = "WebSnapshotWorker"
     }
 }

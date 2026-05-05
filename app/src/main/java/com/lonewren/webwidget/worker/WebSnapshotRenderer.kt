@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.util.Log
 import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -143,7 +144,12 @@ class WebSnapshotRenderer(private val appContext: Context) {
                 // failures (favicons, third-party trackers) are common and
                 // shouldn't fail the whole snapshot.
                 if (request.isForMainFrame) {
-                    loadFailureReason = "HTTP error ${error.errorCode}"
+                    val description = error.description?.toString().orEmpty()
+                    loadFailureReason = "WebView error ${error.errorCode}: $description"
+                    Log.w(
+                        TAG,
+                        "main-frame error code=${error.errorCode} desc=$description url=${request.url}",
+                    )
                     if (!pageReady.isCompleted) pageReady.complete(Unit)
                 }
             }
@@ -219,6 +225,7 @@ class WebSnapshotRenderer(private val appContext: Context) {
         private const val SETTLE_DELAY_MS = 500L
         private const val MIN_RENDER_DIMENSION_PX = 256
         private const val MAX_RENDER_DIMENSION_PX = 2048
+        private const val TAG = "WebSnapshotRenderer"
 
         // Recent stable Chrome desktop UA. Worth refreshing periodically so
         // sites don't bucket us as an obsolete browser.
