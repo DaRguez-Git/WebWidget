@@ -26,42 +26,30 @@ class WebWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
     ) {
-        val container = context.appContainer
-
-        // Paint the adapter RemoteViews immediately. Even if the worker
-        // hasn't run yet, the launcher will bind to our factory and show
-        // the empty view ("Loading…") instead of a blank cell.
+        // Bind the adapter immediately so the empty view ("Loading…")
+        // appears on cold rebuilds (post-reboot, etc.) instead of a blank
+        // square. The actual snapshots are produced by the worker that
+        // we re-enqueue below.
         for (id in appWidgetIds) {
             val rv = WidgetRemoteViewsBuilder.adapter(
                 context = context,
                 appWidgetId = id,
-                targetUrl = null,
                 emptyText = context.getString(R.string.widget_loading),
             )
             appWidgetManager.updateAppWidget(id, rv)
         }
 
         // goAsync extends the receiver wall-clock budget (~30s) so the
-        // DataStore read and WorkManager enqueue complete before the system
+        // DataStore reads + WorkManager enqueue complete before the system
         // can kill our process.
+        val container = context.appContainer
         val pending = goAsync()
         ioScope.launch {
             try {
                 for (id in appWidgetIds) {
                     val cfg = container.widgetPreferences.get(id) ?: continue
-                    // Now that we know the URL, rebuild the RemoteViews so
-                    // taps on the empty view (and on tiles, once they
-                    // arrive) open the right page.
-                    val rv = WidgetRemoteViewsBuilder.adapter(
-                        context = context,
-                        appWidgetId = id,
-                        targetUrl = cfg.url,
-                        emptyText = context.getString(R.string.widget_loading),
-                    )
-                    appWidgetManager.updateAppWidget(id, rv)
-                    // Idempotent re-arm: in case WorkManager was wiped (app
-                    // data clear, backup/restore) we re-enqueue the periodic
-                    // and the immediate one-shot.
+                    // Idempotent re-arm in case WorkManager was wiped (app
+                    // data clear, backup/restore).
                     WidgetScheduler.schedule(context, id, cfg.interval)
                 }
             } finally {
@@ -77,8 +65,7 @@ class WebWidgetProvider : AppWidgetProvider() {
         newOptions: Bundle?,
     ) {
         // The user resized the widget. Re-enqueue an immediate one-shot so
-        // the snapshot is regenerated at the new tile dimensions instead of
-        // showing stretched cached tiles.
+        // every URL is re-rendered at the new card dimensions.
         val container = context.appContainer
         val pending = goAsync()
         ioScope.launch {

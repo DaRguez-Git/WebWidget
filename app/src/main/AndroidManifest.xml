@@ -65,6 +65,20 @@
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
+        <!--
+            Trampoline that dispatches widget card taps to either the system
+            browser (URL card) or the configuration Activity (the "+ Add URL"
+            card). Theme.NoDisplay keeps the activity invisible; it just
+            forwards to the right destination and finish()es. exported=true
+            because the launcher process originates the click.
+        -->
+        <activity
+            android:name=".widget.WidgetActionActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+
     </application>
 
 </manifest>

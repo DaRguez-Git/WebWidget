@@ -1,10 +1,7 @@
 package com.lonewren.webwidget.config
 
 import android.app.Application
-import android.appwidget.AppWidgetManager
-import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
@@ -14,8 +11,6 @@ import com.lonewren.webwidget.data.RefreshInterval
 import com.lonewren.webwidget.data.WidgetConfig
 import com.lonewren.webwidget.di.AppContainer
 import com.lonewren.webwidget.widget.WidgetScheduler
-import com.lonewren.webwidget.widget.WidgetSizing
-import com.lonewren.webwidget.worker.WebSnapshotRenderer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,39 +21,63 @@ import kotlinx.coroutines.launch
  * Backs [WidgetConfigurationActivity]. Exposes a single immutable [UiState]
  * that the Compose tree renders, plus event handlers that mutate it.
  *
- * The preview flow lives here (not in the worker) because the user expects
- * synchronous-ish feedback while typing: the worker is for the background
- * cadence. The two paths share [WebSnapshotRenderer].
+ * The state holds the URL *list* the user is currently editing (one entry
+ * per row in the form). [save] persists it after stripping empty rows and
+ * trimming whitespace.
  */
 class WidgetConfigurationViewModel(
     application: Application,
     private val container: AppContainer,
 ) : AndroidViewModel(application) {
 
+    data class UrlEntry(val value: String, val error: String?)
+
     data class UiState(
-        val url: String = "",
+        val urls: List<UrlEntry> = listOf(UrlEntry("", null)),
         val interval: RefreshInterval = RefreshInterval.DEFAULT,
-        val previewBitmap: Bitmap? = null,
-        val isPreviewLoading: Boolean = false,
-        val previewError: String? = null,
-        val urlError: String? = null,
     ) {
-        val canConfirm: Boolean get() = urlError == null && url.isNotBlank()
+        /**
+         * The user can save when at least one URL is non-blank and every
+         * non-blank URL parses as a valid http(s) URI. Blank rows are
+         * dropped at save time, so they don't block confirmation.
+         */
+        val canConfirm: Boolean
+            get() = urls.any { it.value.isNotBlank() } &&
+                urls.none { it.value.isNotBlank() && it.error != null }
+
+        val canAddMore: Boolean get() = urls.size < WidgetConfig.MAX_URLS
     }
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    fun onUrlChanged(newUrl: String) {
-        _state.update {
-            it.copy(
-                url = newUrl,
-                urlError = validateUrl(newUrl),
-                // Invalidate the preview when the URL changes so the user
-                // doesn't think a stale snapshot is current.
-                previewBitmap = null,
-                previewError = null,
-            )
+    fun onUrlChanged(index: Int, newValue: String) {
+        _state.update { state ->
+            val updated = state.urls.toMutableList()
+            if (index in updated.indices) {
+                updated[index] = UrlEntry(newValue, validateUrl(newValue))
+            }
+            state.copy(urls = updated)
+        }
+    }
+
+    fun onAddUrlClicked() {
+        _state.update { state ->
+            if (!state.canAddMore) state
+            else state.copy(urls = state.urls + UrlEntry("", null))
+        }
+    }
+
+    fun onRemoveUrlClicked(index: Int) {
+        _state.update { state ->
+            val updated = state.urls.toMutableList()
+            if (index !in updated.indices) return@update state
+            updated.removeAt(index)
+            // Keep at least one row in the form so the UI never collapses
+            // to nothing — the user can clear it but we always show a row
+            // they can type into.
+            if (updated.isEmpty()) updated += UrlEntry("", null)
+            state.copy(urls = updated)
         }
     }
 
@@ -66,49 +85,19 @@ class WidgetConfigurationViewModel(
         _state.update { it.copy(interval = interval) }
     }
 
-    fun onRequestPreview(appWidgetId: Int) {
-        val current = _state.value
-        if (!current.canConfirm) return
-        _state.update { it.copy(isPreviewLoading = true, previewError = null) }
-
-        viewModelScope.launch {
-            val size = WidgetSizing.measure(getApplication(), appWidgetId)
-            val renderer = WebSnapshotRenderer(getApplication<Application>().applicationContext)
-            // Using shorter timeout for previews so users aren't stuck looking
-            // at a spinner; the periodic worker uses the longer default.
-            val outcome = renderer.render(
-                url = current.url,
-                targetWidthPx = size.widthPx,
-                targetHeightPx = size.heightPx,
-                timeoutMillis = 12_000L,
-            )
-            _state.update {
-                when (outcome) {
-                    is WebSnapshotRenderer.Result.Success -> it.copy(
-                        previewBitmap = outcome.bitmap,
-                        isPreviewLoading = false,
-                        previewError = null,
-                    )
-                    is WebSnapshotRenderer.Result.Failure -> it.copy(
-                        previewBitmap = null,
-                        isPreviewLoading = false,
-                        previewError = outcome.reason,
-                    )
-                }
-            }
-        }
-    }
-
     /**
-     * Persists the configuration and schedules the first run. Suspends until
+     * Persists the configuration and schedules the worker. Suspends until
      * both have completed so the Activity can call setResult with confidence.
      */
     suspend fun persistAndSchedule(appWidgetId: Int) {
         val current = _state.value
+        val cleaned = current.urls
+            .map { it.value.trim() }
+            .filter { it.isNotBlank() }
         container.widgetPreferences.save(
             WidgetConfig(
                 appWidgetId = appWidgetId,
-                url = current.url.trim(),
+                urls = cleaned,
                 interval = current.interval,
             ),
         )
@@ -119,10 +108,12 @@ class WidgetConfigurationViewModel(
         viewModelScope.launch {
             val existing = container.widgetPreferences.get(appWidgetId) ?: return@launch
             _state.update {
+                val rows = existing.urls.map { UrlEntry(it, validateUrl(it)) }
                 it.copy(
-                    url = existing.url,
+                    // If the user previously saved an empty list, make sure
+                    // the form still shows one editable row.
+                    urls = rows.ifEmpty { listOf(UrlEntry("", null)) },
                     interval = existing.interval,
-                    urlError = validateUrl(existing.url),
                 )
             }
         }
@@ -130,12 +121,10 @@ class WidgetConfigurationViewModel(
 
     private fun validateUrl(raw: String): String? {
         val trimmed = raw.trim()
-        if (trimmed.isBlank()) return null // empty handled by canConfirm
+        if (trimmed.isBlank()) return null
         if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-            return "URL must start with http:// or https://"
+            return "Must start with http:// or https://"
         }
-        // Reject obvious garbage; full RFC validation is overkill for a
-        // single-user input field.
         return runCatching { android.net.Uri.parse(trimmed) }
             .fold(
                 onSuccess = { uri -> if (uri.host.isNullOrBlank()) "Missing host" else null },

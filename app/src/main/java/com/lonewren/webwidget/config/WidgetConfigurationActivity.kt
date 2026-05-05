@@ -15,13 +15,13 @@ import kotlinx.coroutines.launch
 
 /**
  * Launched by the launcher when the user drops the widget on the home screen
- * (and from the widget's "configure" entry afterwards).
+ * (and from the "+ Add URL" trampoline action afterwards).
  *
  * Contract enforced by AppWidgetManager:
  *  - We MUST set the result to Activity.RESULT_OK with an intent containing
  *    EXTRA_APPWIDGET_ID; otherwise the launcher tears the widget down.
- *  - We MUST default the activity result to RESULT_CANCELED before any user
- *    interaction so back-press cleans up properly.
+ *  - We MUST default the activity result to RESULT_CANCELED before any
+ *    user interaction so back-press cleans up properly on first placement.
  */
 class WidgetConfigurationActivity : ComponentActivity() {
 
@@ -33,9 +33,6 @@ class WidgetConfigurationActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Default to CANCELED. If the user backs out without confirming, the
-        // launcher will see this and discard the (still incomplete) widget.
         setResult(Activity.RESULT_CANCELED)
 
         appWidgetId = intent?.extras?.getInt(
@@ -48,7 +45,6 @@ class WidgetConfigurationActivity : ComponentActivity() {
             return
         }
 
-        // If the user is reconfiguring an existing widget, prefill the form.
         viewModel.loadExisting(appWidgetId)
 
         setContent {
@@ -57,8 +53,9 @@ class WidgetConfigurationActivity : ComponentActivity() {
                 WidgetConfigurationScreen(
                     state = state,
                     onUrlChanged = viewModel::onUrlChanged,
+                    onAddUrl = viewModel::onAddUrlClicked,
+                    onRemoveUrl = viewModel::onRemoveUrlClicked,
                     onIntervalChanged = viewModel::onIntervalChanged,
-                    onRequestPreview = { viewModel.onRequestPreview(appWidgetId) },
                     onConfirm = ::confirmAndFinish,
                     onCancel = ::finish,
                 )

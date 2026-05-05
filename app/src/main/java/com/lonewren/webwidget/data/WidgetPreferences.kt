@@ -11,23 +11,25 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-// Top-level delegate is the recommended pattern: the DataStore instance is a
-// process-singleton tied to the application context. Creating two of them on
-// the same file would corrupt the on-disk preferences, hence the delegate.
 private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "web_widgets",
 )
 
 /**
  * Persistent store for per-widget config. Keys are namespaced by appWidgetId
- * (e.g. `widget.42.url`) so that the same DataStore file can hold every
+ * (e.g. `widget.42.urls`) so that the same DataStore file can hold every
  * widget the user has placed without us managing a list manually.
+ *
+ * URLs are serialized as a single newline-delimited string. We avoid
+ * stringSetPreferencesKey because Set semantics drop ordering, and the
+ * order of the URL list IS user-visible (it's the order of the cards
+ * in the StackView).
  */
 class WidgetPreferences(private val appContext: Context) {
 
     private val store: DataStore<Preferences> get() = appContext.widgetDataStore
 
-    private fun urlKey(id: Int) = stringPreferencesKey("widget.$id.url")
+    private fun urlsKey(id: Int) = stringPreferencesKey("widget.$id.urls")
     private fun intervalKey(id: Int) = stringPreferencesKey("widget.$id.interval")
     private fun lastAttemptKey(id: Int) = longPreferencesKey("widget.$id.last_attempt")
 
@@ -39,11 +41,11 @@ class WidgetPreferences(private val appContext: Context) {
 
     suspend fun save(config: WidgetConfig) {
         store.edit { prefs ->
-            prefs[urlKey(config.appWidgetId)] = config.url
+            prefs[urlsKey(config.appWidgetId)] = encodeUrls(config.urls)
             prefs[intervalKey(config.appWidgetId)] = config.interval.name
-            // We do NOT overwrite lastAttempt here — only the worker writes it,
-            // so saving from the configuration UI doesn't accidentally erase
-            // the timestamp shown on the error placeholder.
+            // We do NOT overwrite lastAttempt here — only the worker writes
+            // it, so saving from the configuration UI doesn't accidentally
+            // erase the timestamp shown on the per-URL error placeholder.
         }
     }
 
@@ -53,16 +55,25 @@ class WidgetPreferences(private val appContext: Context) {
 
     suspend fun remove(appWidgetId: Int) {
         store.edit { prefs ->
-            prefs.remove(urlKey(appWidgetId))
+            prefs.remove(urlsKey(appWidgetId))
             prefs.remove(intervalKey(appWidgetId))
             prefs.remove(lastAttemptKey(appWidgetId))
         }
     }
 
     private fun readConfig(prefs: Preferences, appWidgetId: Int): WidgetConfig? {
-        val url = prefs[urlKey(appWidgetId)] ?: return null
+        val rawUrls = prefs[urlsKey(appWidgetId)] ?: return null
+        val urls = decodeUrls(rawUrls)
         val interval = RefreshInterval.fromName(prefs[intervalKey(appWidgetId)])
         val lastAttempt = prefs[lastAttemptKey(appWidgetId)]
-        return WidgetConfig(appWidgetId, url, interval, lastAttempt)
+        return WidgetConfig(appWidgetId, urls, interval, lastAttempt)
     }
+
+    // \n-delimited; URLs cannot legally contain a literal newline, so this
+    // is unambiguous without needing JSON or a binary delimiter.
+    private fun encodeUrls(urls: List<String>): String =
+        urls.joinToString(separator = "\n")
+
+    private fun decodeUrls(raw: String): List<String> =
+        if (raw.isEmpty()) emptyList() else raw.split('\n')
 }

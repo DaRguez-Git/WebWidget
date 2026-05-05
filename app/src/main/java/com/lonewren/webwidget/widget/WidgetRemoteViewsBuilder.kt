@@ -1,6 +1,7 @@
 package com.lonewren.webwidget.widget
 
 import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -9,7 +10,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.net.Uri
-import android.view.View
 import android.widget.RemoteViews
 import com.lonewren.webwidget.R
 import java.text.SimpleDateFormat
@@ -20,62 +20,61 @@ import kotlin.math.min
 /**
  * Builds the [RemoteViews] tree pushed to the launcher for a given widget.
  *
- * The widget is a ListView whose rows come from [WebWidgetRemoteViewsService].
- * This builder is responsible for:
- *  - Wiring the ListView to the service via setRemoteAdapter (every refresh
- *    must pass a fresh Intent so the launcher invalidates its row cache).
- *  - Setting the empty view text (loading / error).
- *  - Setting the click pending intent template — the per-row fill-in is
- *    set inside the factory.
+ * The widget is a StackView whose cards come from
+ * [WebWidgetRemoteViewsService]. This builder wires up:
+ *  - The remote adapter intent (one per appWidgetId, with a unique data
+ *    URI to defeat Intent.filterEquals deduping in the launcher).
+ *  - The empty view (loading text).
+ *  - The pending-intent template that all card clicks share. The template
+ *    targets [WidgetActionActivity] so each card's fill-in extras decide
+ *    whether the tap opens a URL or the configuration screen.
  */
 object WidgetRemoteViewsBuilder {
 
-    /**
-     * Builds the adapter-backed RemoteViews. Call [Companion.notifyDataChanged]
-     * after every snapshot write so the launcher reloads tiles.
-     *
-     * @param emptyText shown by the launcher when the ListView reports zero
-     *                  rows (i.e. before the first snapshot lands or while
-     *                  the cache is being rewritten).
-     */
     fun adapter(
         context: Context,
         appWidgetId: Int,
-        targetUrl: String?,
         emptyText: String,
     ): RemoteViews = RemoteViews(context.packageName, R.layout.widget_web).apply {
         val adapterIntent = Intent(context, WebWidgetRemoteViewsService::class.java).apply {
-            putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            // Distinct data URI per appWidgetId is essential: the launcher
-            // dedupes adapter intents by their `Intent.filterEquals`, which
-            // ignores extras. Without unique data the launcher would reuse
-            // the factory of another widget.
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            // Unique data URI per appWidgetId so the launcher does not
+            // dedupe two different widget instances onto the same factory.
             data = Uri.parse("webwidget://$appWidgetId")
         }
-        setRemoteAdapter(R.id.widget_list, adapterIntent)
-        setEmptyView(R.id.widget_list, R.id.widget_empty)
+        setRemoteAdapter(R.id.widget_stack, adapterIntent)
+        setEmptyView(R.id.widget_stack, R.id.widget_empty)
         setTextViewText(R.id.widget_empty, emptyText)
-        setViewVisibility(R.id.widget_empty, View.VISIBLE)
 
-        if (targetUrl != null) {
-            setPendingIntentTemplate(
-                R.id.widget_list,
-                openUrlPendingIntent(context, appWidgetId, targetUrl),
-            )
-            // Tap on the empty view (loading/error state) also opens the URL,
-            // so the user has a way to recover with the same gesture.
-            setOnClickPendingIntent(
-                R.id.widget_empty,
-                openUrlPendingIntent(context, appWidgetId, targetUrl),
-            )
+        // Click template. Template's component is fixed to the trampoline;
+        // each card supplies extras via setOnClickFillInIntent. The fill-in
+        // CANNOT change action/component, only data and extras — that's why
+        // we route everything through the trampoline.
+        //
+        // FLAG_MUTABLE is required for setPendingIntentTemplate: the
+        // launcher merges the per-card fill-in intent into the template
+        // before firing it. An immutable template would prevent that
+        // merge. The constant exists from API 31; on older APIs the bit
+        // is a no-op (PendingIntents were mutable by default), so it's
+        // safe to set unconditionally on minSdk 26.
+        val templateIntent = Intent(context, WidgetActionActivity::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            data = Uri.parse("webwidget-action://$appWidgetId")
         }
+        val templatePI = PendingIntent.getActivity(
+            context,
+            appWidgetId,
+            templateIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+        setPendingIntentTemplate(R.id.widget_stack, templatePI)
     }
 
     /**
-     * Pre-renders a placeholder bitmap with the localized error title and
-     * the timestamp of the last attempt. We bake into a bitmap rather than
-     * relying on RemoteViews TextView styling because RemoteViews has poor
-     * text controls at small widget sizes.
+     * Pre-renders a placeholder bitmap for a single failing URL. We bake
+     * the text into a bitmap rather than relying on RemoteViews TextView
+     * styling because RemoteViews has poor text controls at small widget
+     * sizes.
      */
     fun renderErrorTile(
         context: Context,
@@ -126,21 +125,5 @@ object WidgetRemoteViewsBuilder {
             subtitlePaint,
         )
         return bmp
-    }
-
-    private fun openUrlPendingIntent(
-        context: Context,
-        appWidgetId: Int,
-        url: String,
-    ): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        return PendingIntent.getActivity(
-            context,
-            appWidgetId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
     }
 }

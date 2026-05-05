@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Single URL card inside the widget's StackView. The image fills the
+    StackView area; fitXY is intentional because the bitmap is rendered
+    at exactly the widget dimensions, so no scaling artefacts appear.
+    The FrameLayout root is what receives the click fill-in intent.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/card_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background">
+
+    <ImageView
+        android:id="@+id/card_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="@string/widget_label" />
+
+</FrameLayout>

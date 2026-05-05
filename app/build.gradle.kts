@@ -59,6 +59,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // WorkManager + Kotlin coroutines

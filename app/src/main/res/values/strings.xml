@@ -2,15 +2,18 @@
 <resources>
     <string name="app_name">WebWidget</string>
     <string name="widget_label">Web Page Widget</string>
-    <string name="widget_description">Shows a snapshot of any web page on your home screen.</string>
+    <string name="widget_description">Swipe through snapshots of any web pages on your home screen.</string>
 
     <string name="widget_config_title">Configure web widget</string>
-    <string name="widget_config_url_label">Page URL</string>
+    <string name="widget_config_url_label">URL %1$d</string>
     <string name="widget_config_url_hint">https://example.com</string>
     <string name="widget_config_interval_label">Refresh interval</string>
-    <string name="widget_config_preview">Preview</string>
-    <string name="widget_config_confirm">Add to home screen</string>
+    <string name="widget_config_confirm">Save</string>
     <string name="widget_config_cancel">Cancel</string>
+    <string name="widget_config_add_url">Add URL</string>
+    <string name="widget_config_remove_url">Remove URL</string>
+    <string name="widget_config_max_urls_hint">You can add up to %1$d URLs.</string>
+    <string name="widget_config_no_urls">Add at least one URL to save.</string>
 
     <string name="widget_config_interval_15m">Every 15 minutes</string>
     <string name="widget_config_interval_30m">Every 30 minutes</string>
@@ -21,4 +24,5 @@
     <string name="widget_error_title">Couldn\'t load page</string>
     <string name="widget_error_last_attempt">Last attempt: %1$s</string>
     <string name="widget_loading">Loading…</string>
+    <string name="widget_add_card_text">+ Add URL</string>
 </resources>

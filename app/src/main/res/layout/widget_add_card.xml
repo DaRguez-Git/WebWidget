@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The terminal card in the StackView: a "+ Add URL" affordance. Tapping
+    it triggers the trampoline activity with EXTRA_OPEN_CONFIG=true, which
+    launches the configuration screen so the user can append another URL.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/card_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background">
+
+    <TextView
+        android:id="@+id/add_card_text"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:padding="16dp"
+        android:textColor="@color/widget_error_text"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:text="@string/widget_add_card_text" />
+
+</FrameLayout>

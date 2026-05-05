@@ -2,15 +2,15 @@
 <!--
     RemoteViews layout for the home-screen widget.
 
-    Constraint: RemoteViews supports a tiny set of scrollable containers:
-    ListView, GridView, StackView, AdapterViewFlipper. ScrollView is NOT
-    supported. To get vertical scrolling we use a ListView whose rows are
-    image tiles sliced from a tall full-page snapshot. The listview is
-    populated by WebWidgetRemoteViewsService through setRemoteAdapter.
+    StackView is the RemoteViews-friendly equivalent of a swipeable
+    pager: each child fills the StackView (full widget area) and the
+    user swipes vertically/horizontally to bring the next card to the
+    front. This is the same component the legacy "Bookmarks" widget
+    used. The launcher handles gesture detection for us.
 
-    The TextView serves as the empty view (setEmptyView). It is shown
-    automatically by the launcher whenever the ListView reports zero rows
-    — i.e. before the first snapshot lands.
+    The TextView is the empty view (setEmptyView). It is shown
+    automatically whenever the StackView reports zero items — i.e.
+    before the first snapshot lands, on a freshly placed widget.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -18,15 +18,11 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_background">
 
-    <ListView
-        android:id="@+id/widget_list"
+    <StackView
+        android:id="@+id/widget_stack"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:divider="@null"
-        android:dividerHeight="0dp"
-        android:scrollbars="vertical"
-        android:overScrollMode="never"
-        android:listSelector="@android:color/transparent" />
+        android:loopViews="true" />
 
     <TextView
         android:id="@+id/widget_empty"
