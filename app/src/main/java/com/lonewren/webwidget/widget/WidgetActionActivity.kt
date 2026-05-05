@@ -2,9 +2,11 @@ package com.lonewren.webwidget.widget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import com.lonewren.webwidget.config.WidgetConfigurationActivity
 
 /**
@@ -39,7 +41,11 @@ class WidgetActionActivity : Activity() {
             AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID,
         )
-        if (intent.getBooleanExtra(EXTRA_OPEN_CONFIG, false)) {
+        val url = intent.getStringExtra(EXTRA_URL)
+        val openConfig = intent.getBooleanExtra(EXTRA_OPEN_CONFIG, false)
+        Log.d(TAG, "dispatch widget=$widgetId openConfig=$openConfig url=$url")
+
+        if (openConfig) {
             startActivity(
                 Intent(this, WidgetConfigurationActivity::class.java).apply {
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
@@ -48,15 +54,24 @@ class WidgetActionActivity : Activity() {
             )
             return
         }
-        val url = intent.getStringExtra(EXTRA_URL) ?: return
-        startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            },
-        )
+        if (url.isNullOrBlank()) {
+            Log.w(TAG, "no URL extra on click intent; ignoring")
+            return
+        }
+        try {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+        } catch (e: ActivityNotFoundException) {
+            // No browser installed, or the URI scheme has no handler.
+            Log.w(TAG, "no activity to open $url", e)
+        }
     }
 
     companion object {
+        private const val TAG = "WidgetAction"
         const val EXTRA_URL = "com.lonewren.webwidget.extra.URL"
         const val EXTRA_OPEN_CONFIG = "com.lonewren.webwidget.extra.OPEN_CONFIG"
     }

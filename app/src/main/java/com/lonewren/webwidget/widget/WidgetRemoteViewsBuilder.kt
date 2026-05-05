@@ -68,6 +68,19 @@ object WidgetRemoteViewsBuilder {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
         setPendingIntentTemplate(R.id.widget_stack, templatePI)
+
+        // Manual navigation buttons. These exist because StackView's native
+        // swipe gesture is "drag the top card down/away", which is both
+        // unintuitive and unreliable across launchers. The buttons trigger
+        // RemoteViews.showNext / showPrevious through WidgetNavigationReceiver.
+        setOnClickPendingIntent(
+            R.id.widget_next,
+            WidgetNavigationReceiver.nextPendingIntent(context, appWidgetId),
+        )
+        setOnClickPendingIntent(
+            R.id.widget_prev,
+            WidgetNavigationReceiver.prevPendingIntent(context, appWidgetId),
+        )
     }
 
     /**

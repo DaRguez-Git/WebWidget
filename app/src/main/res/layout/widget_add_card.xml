@@ -3,12 +3,16 @@
     The terminal card in the StackView: a "+ Add URL" affordance. Tapping
     it triggers the trampoline activity with EXTRA_OPEN_CONFIG=true, which
     launches the configuration screen so the user can append another URL.
+    clickable=true is required so StackView's gesture detector doesn't
+    intercept taps before they reach the click fill-in intent.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/card_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background">
+    android:background="@drawable/widget_background"
+    android:clickable="true"
+    android:focusable="true">
 
     <TextView
         android:id="@+id/add_card_text"

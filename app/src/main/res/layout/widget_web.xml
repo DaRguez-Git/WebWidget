@@ -2,15 +2,15 @@
 <!--
     RemoteViews layout for the home-screen widget.
 
-    StackView is the RemoteViews-friendly equivalent of a swipeable
-    pager: each child fills the StackView (full widget area) and the
-    user swipes vertically/horizontally to bring the next card to the
-    front. This is the same component the legacy "Bookmarks" widget
-    used. The launcher handles gesture detection for us.
+    StackView is the RemoteViews-friendly equivalent of a swipeable card
+    pile: each child fills the StackView (full widget area). The launcher's
+    swipe gesture is a vertical drag from the top card; not every launcher
+    handles it reliably, so we overlay manual prev/next buttons that
+    invoke RemoteViews.showNext / showPrevious through a receiver.
 
-    The TextView is the empty view (setEmptyView). It is shown
-    automatically whenever the StackView reports zero items — i.e.
-    before the first snapshot lands, on a freshly placed widget.
+    The "Loading…" TextView is the empty view (setEmptyView). It is shown
+    automatically whenever the StackView reports zero items — i.e. before
+    the first snapshot lands or while the worker is rebuilding.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -33,5 +33,27 @@
         android:textColor="@color/widget_error_text"
         android:textSize="14sp"
         android:text="@string/widget_loading" />
+
+    <ImageButton
+        android:id="@+id/widget_prev"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_vertical|start"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/nav_button_background"
+        android:src="@drawable/ic_chevron_left"
+        android:scaleType="centerInside"
+        android:contentDescription="@string/widget_nav_prev" />
+
+    <ImageButton
+        android:id="@+id/widget_next"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="6dp"
+        android:background="@drawable/nav_button_background"
+        android:src="@drawable/ic_chevron_right"
+        android:scaleType="centerInside"
+        android:contentDescription="@string/widget_nav_next" />
 
 </FrameLayout>

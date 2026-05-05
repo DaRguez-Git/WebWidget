@@ -79,6 +79,20 @@
             android:excludeFromRecents="true"
             android:noHistory="true" />
 
+        <!--
+            Handles taps on the manual prev/next navigation buttons rendered
+            on top of the StackView. exported=true because the launcher
+            sends the broadcast.
+        -->
+        <receiver
+            android:name=".widget.WidgetNavigationReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.lonewren.webwidget.ACTION_NEXT" />
+                <action android:name="com.lonewren.webwidget.ACTION_PREV" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

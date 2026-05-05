@@ -25,4 +25,6 @@
     <string name="widget_error_last_attempt">Last attempt: %1$s</string>
     <string name="widget_loading">Loading…</string>
     <string name="widget_add_card_text">+ Add URL</string>
+    <string name="widget_nav_prev">Previous page</string>
+    <string name="widget_nav_next">Next page</string>
 </resources>
