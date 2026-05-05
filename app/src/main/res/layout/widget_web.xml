@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    RemoteViews layout for the home-screen widget.
+
+    Constraint: RemoteViews only supports a small whitelist of view types and
+    attributes. ImageView + FrameLayout + TextView are safe; ScrollView, custom
+    views and WebView are NOT — that is the entire reason we paint to a Bitmap
+    in a worker rather than embedding a WebView here.
+
+    The ImageView holds the rendered snapshot (set via setImageViewBitmap).
+    The TextView is overlaid only when we have an error to surface; the worker
+    flips its visibility through RemoteViews.setViewVisibility.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:id="@+id/widget_root">
+
+    <ImageView
+        android:id="@+id/widget_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/widget_label" />
+
+    <TextView
+        android:id="@+id/widget_error_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:padding="12dp"
+        android:textColor="@color/widget_error_text"
+        android:textSize="12sp"
+        android:visibility="gone"
+        tools:ignore="UnusedAttribute"
+        xmlns:tools="http://schemas.android.com/tools" />
+
+</FrameLayout>

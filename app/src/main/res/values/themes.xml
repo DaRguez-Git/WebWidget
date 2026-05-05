@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        We use a Material3 base because the configuration screen is Compose
+        Material3. The widget itself does not consume this theme — it lives in
+        the launcher's process and uses RemoteViews.
+    -->
+    <style name="Theme.WebWidget" parent="Theme.Material3.DayNight.NoActionBar" />
+</resources>

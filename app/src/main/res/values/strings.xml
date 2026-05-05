@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WebWidget</string>
+    <string name="widget_label">Web Page Widget</string>
+    <string name="widget_description">Shows a snapshot of any web page on your home screen.</string>
+
+    <string name="widget_config_title">Configure web widget</string>
+    <string name="widget_config_url_label">Page URL</string>
+    <string name="widget_config_url_hint">https://example.com</string>
+    <string name="widget_config_interval_label">Refresh interval</string>
+    <string name="widget_config_preview">Preview</string>
+    <string name="widget_config_confirm">Add to home screen</string>
+    <string name="widget_config_cancel">Cancel</string>
+
+    <string name="widget_config_interval_15m">Every 15 minutes</string>
+    <string name="widget_config_interval_30m">Every 30 minutes</string>
+    <string name="widget_config_interval_1h">Every hour</string>
+    <string name="widget_config_interval_6h">Every 6 hours</string>
+    <string name="widget_config_interval_24h">Every day</string>
+
+    <string name="widget_error_title">Couldn\'t load page</string>
+    <string name="widget_error_last_attempt">Last attempt: %1$s</string>
+    <string name="widget_loading">Loading…</string>
+</resources>

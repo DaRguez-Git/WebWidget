@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Widget metadata.
+
+    minWidth/minHeight target a 2x2 cell footprint as the lower bound
+    (~110dp per cell on most launchers, so 220x220 is a safe baseline).
+    targetCellWidth/Height take precedence on API 31+ and let us advertise a
+    default 4x2 placement, which matches the most common use case (a wide
+    snapshot of a page). resizeMode allows the user to drag to 2x2 or 4x4.
+
+    updatePeriodMillis is intentionally 0: the AppWidgetManager-driven update
+    cadence is unreliable and capped at ~30 minutes anyway. We schedule our
+    own PeriodicWorkRequest from WorkManager which the user can configure.
+
+    configure: launches WidgetConfigurationActivity right after the widget is
+    placed on the home screen. Without this entry, RESULT_OK in the activity
+    would not register and the widget would be torn down.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="220dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeWidth="320dp"
+    android:maxResizeHeight="320dp"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_web"
+    android:previewImage="@drawable/ic_widget_preview"
+    android:previewLayout="@layout/widget_web"
+    android:configure="com.lonewren.webwidget.config.WidgetConfigurationActivity"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description" />

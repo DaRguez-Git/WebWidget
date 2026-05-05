@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        INTERNET is required because the snapshot Worker drives a WebView that
+        loads remote URLs. ACCESS_NETWORK_STATE lets us short-circuit refreshes
+        when offline so we don't burn the WorkManager retry budget.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".WebWidgetApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.WebWidget"
+        tools:targetApi="34">
+
+        <!--
+            Configuration activity. It is launched by the system when the user
+            drops the widget on the launcher (ACTION_APPWIDGET_CONFIGURE) and
+            is also launchable from the Settings entry of an existing widget.
+            exported=true is mandatory because the launcher process starts it.
+        -->
+        <activity
+            android:name=".config.WidgetConfigurationActivity"
+            android:exported="true"
+            android:theme="@style/Theme.WebWidget"
+            android:label="@string/widget_config_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            The widget itself. AppWidgetProvider is a BroadcastReceiver, so it
+            must be declared here. The provider XML describes sizes, update
+            cadence (we set updatePeriodMillis=0 because WorkManager owns the
+            cadence) and the configuration activity above.
+        -->
+        <receiver
+            android:name=".widget.WebWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/web_widget_provider_info" />
+        </receiver>
+
+    </application>
+
+</manifest>
